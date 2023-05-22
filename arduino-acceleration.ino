@@ -1,45 +1,85 @@
 #define LED_PIN 10
-#define THRESHOLD 950 // 値の変動を考慮して、余裕を持たせる
-#define NORMAL_Z 945
+#define A_PIN 5
+#define A_RESET_PIN 2
 
-bool isExercising = false; // exercise flag
-int exerciseCount = 0;     // count of exercises
+#define A_THRESH_LOW 1
+#define A_THRESH_HIGH 50
+#define INTERVAL 50
+
+int count = 0;
+
+int az;
+int az_normal = 945;
+int az_prev = az_normal;
+
+int velocity = 0; // 積分結果の速度
+int distance = 0; // 積分結果の距離
+int max = 0;
+int min = 0;
+bool direction = true; // true: 正方向, false: 負方向
 
 void setup()
 {
     Serial.begin(9600);
-    pinMode(LED_PIN, OUTPUT); // Set the LED pin as output
+    pinMode(LED_PIN, OUTPUT);
+    pinMode(A_RESET_PIN, INPUT);
 }
 
 void loop()
 {
-    long x, y, z;
-    x = y = z = 0;
-    x = analogRead(3); // X軸
-    y = analogRead(4); // Y軸
-    z = analogRead(5); // Z軸
+    az = analogRead(A_PIN);
 
-    if (z > THRESHOLD && !isExercising)
+    if (digitalRead(A_RESET_PIN) == HIGH)
     {
-        // When the z value goes up beyond the threshold
-        digitalWrite(LED_PIN, HIGH); // Turn on the LED
-        isExercising = true;
-    }
-    else if (z <= NORMAL_Z && isExercising)
-    {
-        // When the z value goes back to normal
-        digitalWrite(LED_PIN, LOW); // Turn off the LED
-        isExercising = false;
-        exerciseCount++; // Count the exercise
-        Serial.print("Exercise count: ");
-        Serial.println(exerciseCount);
+        az_normal = az;
+        az_prev = az;
+        velocity = 0;
+        distance = 0;
+        max = 0;
+        min = 0;
+        direction = true;
+        Serial.print("Normal z: ");
+        Serial.println(az_normal);
     }
 
-//    Serial.print("X:");
-//    Serial.println(x);
-//    Serial.print(" Y:");
-//    Serial.println(y);
-//    Serial.print(" Z:");
-//    Serial.println(z);
-    delay(50);
+    // TODO: タイマ割り込みで実行するようにする
+    if (abs(az - az_prev) > A_THRESH_LOW && abs(az - az_prev) < A_THRESH_HIGH)
+    {
+        velocity += az - az_normal;
+        distance += velocity;
+        az_prev = az;
+
+        if (direction)
+        {
+            if (max < distance) max = distance;
+            else
+            {
+                direction = false;
+                min = distance;
+            }
+        }
+        else  // direction == false
+        {
+            if (min > distance) min = distance;
+            else
+            {
+                direction = true;
+                max = 0;
+                az_prev = az_normal;
+                velocity = 0;
+                distance = 0;
+                Serial.println("Reset!");
+                count++;
+            }
+        }
+
+        // Serial.print("Acceleration z: ");
+        // Serial.print(az);
+        // Serial.print("\tVelocity: ");
+        // Serial.print(velocity);
+        Serial.print("\tDistance: ");
+        Serial.println(distance);
+    }
+
+    delay(INTERVAL);
 }
