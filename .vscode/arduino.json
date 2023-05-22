@@ -1,0 +1,7 @@
+{
+    "board": "arduino:avr:pro",
+    "sketch": "arduino-acceleration.ino",
+    "port": "COM3",
+    "configuration": "cpu=16MHzatmega328",
+    "programmer": "avrispmkii"
+}
