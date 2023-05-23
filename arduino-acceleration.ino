@@ -1,9 +1,10 @@
-#define LED_PIN 10
+#define LED1_PIN 10
+#define LED2_PIN 9
 #define A_PIN 5
 #define A_RESET_PIN 2
 
-#define A_THRESH_LOW 1
-#define A_THRESH_HIGH 50
+#define AZ_THRESH 1
+#define V_THRESH 30
 #define INTERVAL 50
 
 int count = 0;
@@ -18,19 +19,17 @@ int max = 0;
 int min = 0;
 bool direction = true; // true: 正方向, false: 負方向
 
-void setup()
-{
+void setup() {
     Serial.begin(9600);
-    pinMode(LED_PIN, OUTPUT);
+    pinMode(LED1_PIN, OUTPUT);
+    pinMode(LED2_PIN, OUTPUT);
     pinMode(A_RESET_PIN, INPUT);
 }
 
-void loop()
-{
+void loop() {
     az = analogRead(A_PIN);
 
-    if (digitalRead(A_RESET_PIN) == HIGH)
-    {
+    if (digitalRead(A_RESET_PIN) == HIGH) {
         az_normal = az;
         az_prev = az;
         velocity = 0;
@@ -43,32 +42,36 @@ void loop()
     }
 
     // TODO: タイマ割り込みで実行するようにする
-    if (abs(az - az_prev) > A_THRESH_LOW && abs(az - az_prev) < A_THRESH_HIGH)
-    {
-        velocity += az - az_normal;
-        distance += velocity;
-        az_prev = az;
+    velocity += az - az_normal;
+    az_prev = az;
 
-        if (direction)
-        {
+    if (abs(az - az_normal) <= AZ_THRESH) velocity = 0;
+
+    else {
+        if      (velocity < -V_THRESH) velocity = -V_THRESH;
+        else if (velocity >  V_THRESH) velocity =  V_THRESH;
+        distance += velocity;
+
+        if (direction) {
+            digitalWrite(LED1_PIN, HIGH);
+            digitalWrite(LED2_PIN, LOW);
             if (max < distance) max = distance;
-            else
-            {
+            else {
                 direction = false;
                 min = distance;
             }
         }
-        else  // direction == false
-        {
+        else {  // direction == false
+            digitalWrite(LED1_PIN, LOW);
+            digitalWrite(LED2_PIN, HIGH);
             if (min > distance) min = distance;
-            else
-            {
+            else {
                 direction = true;
                 max = 0;
                 az_prev = az_normal;
                 velocity = 0;
                 distance = 0;
-                Serial.println("Reset!");
+                // Serial.println("Reset!");
                 count++;
             }
         }
